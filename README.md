@@ -2,7 +2,7 @@
 
 ![GitHub Tag](https://img.shields.io/github/v/tag/AleksuKey/xk6-otel-instrumentation)
 
-A highly flexible OpenTelemetry extension for Grafana k6, currently in active development (Beta phase).
+A highly flexible OpenTelemetry extension for Grafana k6, currently in active development (Stable).
 
 Instead of using complex JavaScript wrapper functions or generating disconnected synthetic "noise" traces, this extension performs a native **monkey-patching intercept** on the core `k6/http` module directly within the Go runtime. 
 
@@ -34,7 +34,7 @@ To build a custom `k6` binary packed with this extension, you will need **Go** i
 
 2. Compile your customized `k6` binary fetching this extension directly from GitHub:
    ```bash
-   xk6 build --with github.com/AleksuKey/xk6-otel-instrumentation@v1.0.2
+   xk6 build --with github.com/AleksuKey/xk6-otel-instrumentation@v1.1.0
    ```
 
 This will output a native `./k6` executable binary in your current working directory.
@@ -97,6 +97,8 @@ The `.instrument(httpModule, config)` method accepts a flexible configuration ob
 | `sampler` | `String` | `"always_on"` | Trace sampling strategy. Options: `"always_on"`, `"always_off"`, or `"ratio"`. |
 | `samplingRatio` | `Float` | `1.0` | Controlled sample rate ratio. Used only if `sampler` is set to `"ratio"`. Accepts values between `0.0` (0%) and `1.0` (100%). |
 | `legacySemconv` | `Boolean` | `false` | Enables Dual-Write mode, writing both modern Stable (e.g., `http.request.method`) and Legacy (e.g., `http.method`) semantic conventions side-by-side. Useful for older APM environments. |
+| `timeoutSeconds` | `Integer` | `30` | Network timeout threshold in seconds for all outbound HTTP requests managed by the instrumented client. |
+| `maxResponseBodyMB` | `Integer` | `10` | Maximum allocation safety ceiling in Megabytes allowed for buffering responses to protect k6 memory from high-throughput leaks. |
 | `resourceAttributes` | `Object` | `{}` | A key-value map of custom strings, booleans, integers, or floats to register as OpenTelemetry global process attributes. |
 
 ---
