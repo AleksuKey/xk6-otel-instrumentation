@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "Group k6-related dependency updates to minimize noise",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["go.k6.io/k6"],
+      "groupName": "k6 core"
+    }
+  ]
+}
