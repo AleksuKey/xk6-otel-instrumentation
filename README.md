@@ -136,7 +136,6 @@ We provide a collection of ready-to-use script templates to help you test the ex
 
 * [Basic GET Request Template](./examples/basic-get.js): Shows how to trace simple GET requests, pass parameters, and preserve high-cardinality protection using `url.template`.
 * [Complex POST Request Template](./examples/complex-post.js): Demonstrates tracing structured POST JSON payloads and converting standard k6 `tags` blocks into clean OTel span attributes.
-* [Local Testing Stack (Docker Compose)](./examples/docker-compose.yaml): Spin up a local, single-node Jaeger instance with active gRPC OTLP ingestion. Just run `docker compose up` inside the folder and explore your live k6 traces instantly via browser.
 
 ---
 
