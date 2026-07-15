@@ -1,6 +1,6 @@
 # xk6-otel-instrumentation
 
-![GitHub Tag](https://img.shields.io/github/v/tag/AleksuKey/%20xk6-otel-instrumentation)
+![GitHub Tag](https://img.shields.io/github/v/tag/AleksuKey/xk6-otel-instrumentation)
 
 A highly flexible OpenTelemetry extension for Grafana k6, currently in active development (Beta phase).
 
