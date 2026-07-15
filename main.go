@@ -1,4 +1,4 @@
-package otelhttp
+package xk6_otel_instrumentation
 
 import (
 	"context"

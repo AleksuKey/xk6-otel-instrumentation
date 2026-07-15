@@ -34,7 +34,7 @@ To build a custom `k6` binary packed with this extension, you will need **Go** i
 
 2. Compile your customized `k6` binary fetching this extension directly from GitHub:
    ```bash
-   xk6 build --with github.com/AleksuKey/xk6-otel-instrumentation@v1.0.0
+   xk6 build --with github.com/AleksuKey/xk6-otel-instrumentation@v1.1.0
    ```
 
 This will output a native `./k6` executable binary in your current working directory.
