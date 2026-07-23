@@ -12,14 +12,11 @@ Once initialized, any standard `http.get()`, `http.post()`, or `http.request()` 
 
 ## 🚀 Key Features
 
-* **Zero-Code Refactoring:** Seamlessly integrates into your existing test repositories. Your teams keep writing standard `k6/http` scripts while tracing happens transparently under the hood.
-* **True E2E Network Hop Visibility:** Captures real client-side transport latency (DNS resolution, TLS handshake, and network transit) and displays your downstream application's internal spans nested perfectly inside the k6 root trace.
-* **Dual-Write Semantic Conventions:** Supports both modern Stable and Legacy (retro-compatible) OpenTelemetry HTTP conventions simultaneously to ensure perfect alignment with older APM integrations (like older Python FastAPI setups).
-* **High-Cardinality Span Naming Protection:** Native evaluation of `url.template` attributes to cleanly name client spans (e.g., `GET /api/v1/inventory/:id`) instead of raw high-cardinality URI paths.
-* **Dynamic Request-Level Attributes:** Allows attaching on-the-fly custom metadata, tags, or IDs (such as Virtual User ID or iteration) directly to individual request spans using native k6 parameter options.
-* **Dynamic Resource Attributes:** Pass any custom JSON object from JavaScript (e.g., `domain`, `service.environment`, `pipeline.id`), and the Go core will dynamically parse and bind them as OTel Resource Attributes.
-* **Production-Ready Sampling Strategies:** Supports adaptive sampling rules (like `TraceIDRatioBased`) directly from the test script to optimize network bandwidth and APM storage during high-throughput load tests.
-* **Agnostic OTLP Exporting:** Ships spans natively using the standard OTLP/gRPC protocol to any compliant OpenTelemetry ingestion engine.
+* **Zero-Code Native Intercept:** Drops seamlessly into existing test suites—tracing happens transparently under the hood without rewriting standard `k6/http` calls or logic.
+* **Zero Metric Loss:** Delegates execution back to k6's core engine, preserving 100% of native k6 metrics (`http_req_duration`, CLI summaries, and standard metric exporters).
+* **OTel Spec & Low-Cardinality Naming:** Aligns strictly with OpenTelemetry HTTP Client conventions (supporting both Stable & Legacy dual-write) and uses `url.template` to prevent high-cardinality span name explosion.
+* **Full Context Propagation & Metadata:** Injects official W3C `traceparent` headers across the wire while mapping custom request tags, VU metadata, and global resource attributes directly to spans.
+* **Native OTLP/gRPC Exporting:** Ships spans via gRPC to any OTel-compliant backend (Jaeger, Tempo, OTel Collector) with built-in ratio sampling support.
 
 ---
 
@@ -34,7 +31,7 @@ To build a custom `k6` binary packed with this extension, you will need **Go** i
 
 2. Compile your customized `k6` binary fetching this extension directly from GitHub:
    ```bash
-   xk6 build --with github.com/AleksuKey/xk6-otel-instrumentation@v1.1.0
+   xk6 build --with https://github.com/AleksuKey/xk6-otel-instrumentation@v1.2.0
    ```
 
 This will output a native `./k6` executable binary in your current working directory.
@@ -97,8 +94,8 @@ The `.instrument(httpModule, config)` method accepts a flexible configuration ob
 | `sampler` | `String` | `"always_on"` | Trace sampling strategy. Options: `"always_on"`, `"always_off"`, or `"ratio"`. |
 | `samplingRatio` | `Float` | `1.0` | Controlled sample rate ratio. Used only if `sampler` is set to `"ratio"`. Accepts values between `0.0` (0%) and `1.0` (100%). |
 | `legacySemconv` | `Boolean` | `false` | Enables Dual-Write mode, writing both modern Stable (e.g., `http.request.method`) and Legacy (e.g., `http.method`) semantic conventions side-by-side. Useful for older APM environments. |
-| `timeoutSeconds` | `Integer` | `30` | Network timeout threshold in seconds for all outbound HTTP requests managed by the instrumented client. |
-| `maxResponseBodyMB` | `Integer` | `10` | Maximum allocation safety ceiling in Megabytes allowed for buffering responses to protect k6 memory from high-throughput leaks. |
+| `timeoutSeconds` | `Integer` | `30` | Network timeout threshold in seconds for outbound HTTP requests. |
+| `maxResponseBodyMB` | `Integer` | `10` | Maximum allocation safety ceiling in Megabytes allowed for responses to protect k6 memory from high-throughput leaks. |
 | `resourceAttributes` | `Object` | `{}` | A key-value map of custom strings, booleans, integers, or floats to register as OpenTelemetry global process attributes. |
 
 ---
@@ -143,21 +140,40 @@ We provide a collection of ready-to-use script templates to help you test the ex
 
 ## 🧠 How it Works Under the Hood
 
-When `.instrument()` is executed, the extension leverages the **Sobek JavaScript Runtime engine** inside k6 to target and swap out native JavaScript functions (`http.get`, `http.post`, etc.) with customized Go interceptors.
+When `.instrument()` is executed, the extension captures k6's native JavaScript `http.request` function. When an HTTP call is executed from your test script:
+
+1. The interceptor creates an OpenTelemetry client span and sets initial request attributes.
+2. It injects standard W3C `traceparent` and `tracestate` headers into the request headers.
+3. It **delegates execution back to k6's native HTTP engine**, ensuring all current and future native k6 HTTP metrics are recorded accurately.
+4. Once the response is returned, it extracts response attributes, updates span status/errors, and closes the span.
 
 ```text
- [ k6 Script ] ──> ( Native http.post ) ──> [ xk6 Interceptor (Go) ]
-                                                      │
-             ┌────────────────────────────────────────┴────────────────────────────────────────┐
-             ▼                                                                                 ▼
-[ OpenTelemetry Client Span ]                                                       [ HTTP Wire Request ]
-- Injects standard W3C 'traceparent'                                                - Transmits HTTP Payload
-- Tracks nanosecond metrics (DNS/TLS/Transit)                                       - Propagates Context to Python/Java/Go
-- Captures custom request attributes & tags                                        - Triggers seamless downstream cascades
-- Ships directly via OTLP/gRPC to Jaeger                                            
+  [ k6 Script (http.get / http.post) ]
+                   │
+                   ▼
+  ┌────────────────────────────────────────┐
+  │ xk6 Interceptor                        │
+  │ 1. Starts OTel Client Span             │
+  │ 2. Injects W3C 'traceparent' Header    │
+  └──────────────────┬─────────────────────┘
+                     │ Delegates Execution
+                     ▼
+  ┌────────────────────────────────────────┐
+  │ Native k6 Core HTTP Engine             │
+  │ 1. Transmits HTTP Request over Wire    │
+  │ 2. Emits ALL Native k6 HTTP Metrics    │
+  │    (http_req_duration, http_reqs, etc) │
+  └──────────────────┬─────────────────────┘
+                     │ Returns Response Object
+                     ▼
+  ┌────────────────────────────────────────┐
+  │ xk6 Interceptor                        │
+  │ 1. Records Status, Errors, & Proto     │
+  │ 2. Closes Span & Exports via OTLP/gRPC │
+  └────────────────────────────────────────┘
 ```
 
-This hybrid execution guarantees that you maintain the incredible raw performance and low memory footprint of `k6`, while achieving 100% compliant distributed tracing context propagation.
+This hybrid execution guarantees that you maintain the raw performance and complete native metric reporting of k6 while achieving 100% compliant distributed tracing context propagation.
 
 ---
 
